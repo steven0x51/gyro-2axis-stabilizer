@@ -25,6 +25,7 @@ float rawAccX, rawAccY, rawAccZ;
 float filteredAccX, filteredAccY, filteredAccZ;
 
 float rawGyroX, rawGyroY, rawGyroZ;
+float calGyroX, calGyroY, calGyroZ;
 float biasX, biasY, biasZ = 0.0;
 
 float pitch, roll, yaw = 0.0;
@@ -40,7 +41,7 @@ Servo servoH, servoV;
 
 void setup() {
   Serial.begin(9600);
-  while (!Serial);
+  //while (!Serial);
 
   if (!IMU.begin()) {
     Serial.println("Failed to initialize IMU!");
@@ -51,7 +52,7 @@ void setup() {
     for (int i = 0; i < (int)num_sample; i++) {
         Serial.println("Calabrating Gyro bias...");
         IMU.readGyroscope(rawGyroX, rawGyroY, rawGyroZ);
-        printRawGyro();
+        //printRawGyro();
         biasX += rawGyroX;
         biasY += rawGyroY;
         biasZ += rawGyroZ;
@@ -74,9 +75,12 @@ void loop() {
     IMU.readGyroscope(rawGyroX, rawGyroY, rawGyroZ);
     IMU.readAcceleration(rawAccX, rawAccY, rawAccZ);
 
-    if (rawGyroX - biasX > -0.1 && rawGyroX - biasX < 0.1) rawGyroX = 0.0;
-    if (rawGyroY - biasY > -0.1 && rawGyroY - biasY < 0.1) rawGyroY = 0.0;
-    if (rawGyroZ - biasZ > -0.1 && rawGyroZ - biasZ < 0.1) rawGyroZ = 0.0;
+    calGyroX = rawGyroX - biasX;
+    calGyroY = rawGyroY - biasY;
+    calGyroZ = rawGyroZ - biasZ;
+    if (calGyroX > -0.1 && calGyroX < 0.1) calGyroX = 0.0;
+    if (calGyroY > -0.1 && calGyroY < 0.1) calGyroY = 0.0;
+    if (calGyroZ > -0.1 && calGyroZ < 0.1) calGyroZ = 0.0;
 
     // low pass filter
     filteredAccX = lowPassWeight * filteredAccX + (1 - lowPassWeight) * rawAccX;
@@ -84,9 +88,9 @@ void loop() {
     filteredAccZ = lowPassWeight * filteredAccZ + (1 - lowPassWeight) * rawAccZ;
 
     deltaT = (millis() - prevTime) / 1000.0;
-    pitch = gyroWeight * (pitch + rawGyroY * deltaT) + (1 - gyroWeight) * atan2(filteredAccX, filteredAccZ) * 180 / PI;
-    roll = gyroWeight * (roll + rawGyroX * deltaT) + (1 - gyroWeight) * atan2(filteredAccY, filteredAccZ) * 180 / PI;
-    yaw += rawGyroZ * deltaT;
+    pitch = gyroWeight * (pitch + calGyroY * deltaT) + (1 - gyroWeight) * atan2(filteredAccX, filteredAccZ) * 180 / PI;
+    roll = gyroWeight * (roll + calGyroX * deltaT) + (1 - gyroWeight) * atan2(filteredAccY, filteredAccZ) * 180 / PI;
+    yaw += calGyroZ * deltaT;
     prevTime = millis();
 
     cameraYaw = map((int)yaw, 90, -90, 0, 180);
@@ -105,7 +109,8 @@ void loop() {
     //printBias();
     //printAll();
     //printAcc();
-    //printCamera();
+    printCamera();
+    //printCalGyro();
   }
 }
 
@@ -138,6 +143,14 @@ void printBias() {
   Serial.print('\t');
   Serial.print(biasZ);
   Serial.print('\t');
+}
+
+void printCalGyro() {
+  Serial.print(calGyroX);
+  Serial.print('\t');
+  Serial.print(calGyroY);
+  Serial.print('\t');
+  Serial.println(calGyroZ);
 }
 
 void printRawGyro() {
